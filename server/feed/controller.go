@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type CreatePostSerializer struct {
+type createPostSerializer struct {
 	Message string `json:"message"`
 	Post    *Post  `json:"post"`
 }
@@ -21,5 +21,5 @@ func createPost(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
 	}
 	// create post in db
-	return c.Status(http.StatusCreated).JSON(CreatePostSerializer{Message: "Post created sucessfully!", Post: post})
+	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created sucessfully!", Post: post})
 }
