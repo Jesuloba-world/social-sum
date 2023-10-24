@@ -1,0 +1,42 @@
+import { Link } from "react-router-dom";
+
+import "./Button.css";
+import { ReactNode } from "react";
+
+const button = (props: {
+	design?: string;
+	link?: string;
+	mode: string;
+	onClick: () => void;
+	disabled?: boolean;
+	loading?: boolean;
+	type?: "button" | "submit" | "reset";
+	children: ReactNode;
+}) =>
+	!props.link ? (
+		<button
+			className={[
+				"button",
+				`button--${props.design}`,
+				`button--${props.mode}`,
+			].join(" ")}
+			onClick={props.onClick}
+			disabled={props.disabled || props.loading}
+			type={props.type}
+		>
+			{props.loading ? "Loading..." : props.children}
+		</button>
+	) : (
+		<Link
+			className={[
+				"button",
+				`button--${props.design}`,
+				`button--${props.mode}`,
+			].join(" ")}
+			to={props.link}
+		>
+			{props.children}
+		</Link>
+	);
+
+export default button;
