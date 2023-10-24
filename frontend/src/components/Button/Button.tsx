@@ -7,7 +7,7 @@ const button = (props: {
 	design?: string;
 	link?: string;
 	mode: string;
-	onClick: () => void;
+	onClick?: () => void;
 	disabled?: boolean;
 	loading?: boolean;
 	type?: "button" | "submit" | "reset";

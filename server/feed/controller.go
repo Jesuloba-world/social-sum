@@ -2,6 +2,7 @@ package feed
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,7 +13,16 @@ type createPostSerializer struct {
 }
 
 func getPosts(c *fiber.Ctx) error {
-	return c.Status(http.StatusOK).JSON(Post{Title: "First Post", Content: "This is the first post!"})
+	return c.Status(http.StatusOK).JSON([]Post{{
+		Id:       "1",
+		Title:    "First Post",
+		Content:  "This is the first post!",
+		ImageUrl: "images/cook.jpg",
+		Creator: creator{
+			Name: "John Needle",
+		},
+		CreatedAt: time.Now(),
+	}})
 }
 
 func createPost(c *fiber.Ctx) error {

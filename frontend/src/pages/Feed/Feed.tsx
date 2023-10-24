@@ -1,4 +1,4 @@
-import { Component, Fragment } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 
 import Post from "../../components/Feed/Post/Post";
 import Button from "../../components/Button/Button";
@@ -9,8 +9,29 @@ import Loader from "../../components/Loader/Loader";
 import ErrorHandler from "../../components/ErrorHandler/ErrorHandler";
 import "./Feed.css";
 
-class Feed extends Component {
-	state = {
+interface post {
+	_id: string;
+	creator: {
+		name: string;
+	};
+	createdAt: string;
+	title: string;
+	imageUrl?: string;
+	content: string;
+}
+
+const Feed = () => {
+	const [state, setState] = useState<{
+		isEditing: boolean;
+		posts: post[];
+		totalPosts: number;
+		editPost: post | null;
+		status: string;
+		postPage: number;
+		postsLoading: boolean;
+		editLoading: boolean;
+		error: Error | null;
+	}>({
 		isEditing: false,
 		posts: [],
 		totalPosts: 0,
@@ -19,9 +40,48 @@ class Feed extends Component {
 		postPage: 1,
 		postsLoading: true,
 		editLoading: false,
-	};
+		error: null,
+	});
 
-	componentDidMount() {
+	const loadPosts = useCallback(
+		(direction?: "next" | "previous") => {
+			if (direction) {
+				setState((prev) => ({
+					...prev,
+					postsLoading: true,
+					posts: [],
+				}));
+			}
+			let page = state.postPage;
+			if (direction === "next") {
+				page++;
+				setState((prev) => ({ ...prev, postPage: page }));
+			}
+			if (direction === "previous") {
+				page--;
+				setState((prev) => ({ ...prev, postPage: page }));
+			}
+			fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/posts`)
+				.then((res) => {
+					if (res.status !== 200) {
+						throw new Error("Failed to fetch posts.");
+					}
+					return res.json();
+				})
+				.then((resData) => {
+					setState((prev) => ({
+						...prev,
+						posts: resData,
+						totalPosts: resData.length,
+						postsLoading: false,
+					}));
+				})
+				.catch(catchError);
+		},
+		[state.postPage]
+	);
+
+	useEffect(() => {
 		fetch("URL")
 			.then((res) => {
 				if (res.status !== 200) {
@@ -30,44 +90,14 @@ class Feed extends Component {
 				return res.json();
 			})
 			.then((resData) => {
-				this.setState({ status: resData.status });
+				setState((prev) => ({ ...prev, status: resData.status }));
 			})
-			.catch(this.catchError);
+			.catch(catchError);
 
-		this.loadPosts();
-	}
+		loadPosts();
+	}, [loadPosts]);
 
-	loadPosts = (direction) => {
-		if (direction) {
-			this.setState({ postsLoading: true, posts: [] });
-		}
-		let page = this.state.postPage;
-		if (direction === "next") {
-			page++;
-			this.setState({ postPage: page });
-		}
-		if (direction === "previous") {
-			page--;
-			this.setState({ postPage: page });
-		}
-		fetch("URL")
-			.then((res) => {
-				if (res.status !== 200) {
-					throw new Error("Failed to fetch posts.");
-				}
-				return res.json();
-			})
-			.then((resData) => {
-				this.setState({
-					posts: resData.posts,
-					totalPosts: resData.totalItems,
-					postsLoading: false,
-				});
-			})
-			.catch(this.catchError);
-	};
-
-	statusUpdateHandler = (event) => {
+	const statusUpdateHandler = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		fetch("URL")
 			.then((res) => {
@@ -79,37 +109,39 @@ class Feed extends Component {
 			.then((resData) => {
 				console.log(resData);
 			})
-			.catch(this.catchError);
+			.catch(catchError);
 	};
 
-	newPostHandler = () => {
-		this.setState({ isEditing: true });
+	const newPostHandler = () => {
+		setState((prev) => ({ ...prev, isEditing: true }));
 	};
 
-	startEditPostHandler = (postId) => {
-		this.setState((prevState) => {
-			const loadedPost = {
-				...prevState.posts.find((p) => p._id === postId),
-			};
+	const startEditPostHandler = (postId: string) => {
+		setState((prevState) => {
+			const post = prevState.posts.find((p) => p._id === postId);
+			if (!post) {
+				return prevState; // or handle this situation differently
+			}
+
+			const loadedPost = { ...post };
 
 			return {
+				...prevState,
 				isEditing: true,
 				editPost: loadedPost,
 			};
 		});
 	};
 
-	cancelEditHandler = () => {
-		this.setState({ isEditing: false, editPost: null });
+	const cancelEditHandler = () => {
+		setState((prev) => ({ ...prev, isEditing: false, editPost: null }));
 	};
 
-	finishEditHandler = (postData) => {
-		this.setState({
-			editLoading: true,
-		});
+	const finishEditHandler = (postData: post) => {
+		setState((prev) => ({ ...prev, editLoading: true }));
 		// Set up data (with image!)
 		let url = "URL";
-		if (this.state.editPost) {
+		if (state.editPost) {
 			url = "URL";
 		}
 
@@ -128,17 +160,18 @@ class Feed extends Component {
 					creator: resData.post.creator,
 					createdAt: resData.post.createdAt,
 				};
-				this.setState((prevState) => {
+				setState((prevState) => {
 					let updatedPosts = [...prevState.posts];
 					if (prevState.editPost) {
 						const postIndex = prevState.posts.findIndex(
-							(p) => p._id === prevState.editPost._id
+							(p) => p._id === prevState.editPost?._id
 						);
 						updatedPosts[postIndex] = post;
 					} else if (prevState.posts.length < 2) {
-						updatedPosts = prevState.posts.concat(post);
+						updatedPosts = prevState.posts.concat(post as post);
 					}
 					return {
+						...prevState,
 						posts: updatedPosts,
 						isEditing: false,
 						editPost: null,
@@ -148,21 +181,22 @@ class Feed extends Component {
 			})
 			.catch((err) => {
 				console.log(err);
-				this.setState({
+				setState((prev) => ({
+					...prev,
 					isEditing: false,
 					editPost: null,
 					editLoading: false,
 					error: err,
-				});
+				}));
 			});
 	};
 
-	statusInputChangeHandler = (input, value) => {
-		this.setState({ status: value });
+	const statusInputChangeHandler = (input: any, value: string) => {
+		setState((prev) => ({ ...prev, status: value }));
 	};
 
-	deletePostHandler = (postId) => {
-		this.setState({ postsLoading: true });
+	const deletePostHandler = (postId: string) => {
+		setState((prev) => ({ ...prev, postsLoading: true }));
 		fetch("URL")
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
@@ -172,108 +206,102 @@ class Feed extends Component {
 			})
 			.then((resData) => {
 				console.log(resData);
-				this.setState((prevState) => {
+				setState((prevState) => {
 					const updatedPosts = prevState.posts.filter(
 						(p) => p._id !== postId
 					);
-					return { posts: updatedPosts, postsLoading: false };
+					return {
+						...prevState,
+						posts: updatedPosts,
+						postsLoading: false,
+					};
 				});
 			})
 			.catch((err) => {
 				console.log(err);
-				this.setState({ postsLoading: false });
+				setState((prev) => ({ ...prev, postsLoading: false }));
 			});
 	};
 
-	errorHandler = () => {
-		this.setState({ error: null });
+	const errorHandler = () => {
+		setState((prev) => ({ ...prev, error: null }));
 	};
 
-	catchError = (error) => {
-		this.setState({ error: error });
+	const catchError = (error: Error) => {
+		setState((prev) => ({ ...prev, error: error }));
 	};
 
-	render() {
-		return (
-			<Fragment>
-				<ErrorHandler
-					error={this.state.error}
-					onHandle={this.errorHandler}
-				/>
-				<FeedEdit
-					editing={this.state.isEditing}
-					selectedPost={this.state.editPost}
-					loading={this.state.editLoading}
-					onCancelEdit={this.cancelEditHandler}
-					onFinishEdit={this.finishEditHandler}
-				/>
-				<section className="feed__status">
-					<form onSubmit={this.statusUpdateHandler}>
-						<Input
-							type="text"
-							placeholder="Your status"
-							control="input"
-							onChange={this.statusInputChangeHandler}
-							value={this.state.status}
-						/>
-						<Button mode="flat" type="submit">
-							Update
-						</Button>
-					</form>
-				</section>
-				<section className="feed__control">
-					<Button
-						mode="raised"
-						design="accent"
-						onClick={this.newPostHandler}
-					>
-						New Post
+	return (
+		<Fragment>
+			<ErrorHandler error={state.error} onHandle={errorHandler} />
+			<FeedEdit
+				editing={state.isEditing}
+				selectedPost={state.editPost}
+				loading={state.editLoading}
+				onCancelEdit={cancelEditHandler}
+				onFinishEdit={finishEditHandler}
+			/>
+			<section className="feed__status">
+				<form onSubmit={statusUpdateHandler}>
+					<Input
+						type="text"
+						placeholder="Your status"
+						control="input"
+						onChange={statusInputChangeHandler}
+						value={state.status}
+					/>
+					<Button mode="flat" type="submit">
+						Update
 					</Button>
-				</section>
-				<section className="feed">
-					{this.state.postsLoading && (
-						<div style={{ textAlign: "center", marginTop: "2rem" }}>
-							<Loader />
-						</div>
-					)}
-					{this.state.posts.length <= 0 &&
-					!this.state.postsLoading ? (
-						<p style={{ textAlign: "center" }}>No posts found.</p>
-					) : null}
-					{!this.state.postsLoading && (
-						<Paginator
-							onPrevious={this.loadPosts.bind(this, "previous")}
-							onNext={this.loadPosts.bind(this, "next")}
-							lastPage={Math.ceil(this.state.totalPosts / 2)}
-							currentPage={this.state.postPage}
-						>
-							{this.state.posts.map((post) => (
-								<Post
-									key={post._id}
-									id={post._id}
-									author={post.creator.name}
-									date={new Date(
-										post.createdAt
-									).toLocaleDateString("en-US")}
-									title={post.title}
-									image={post.imageUrl}
-									content={post.content}
-									onStartEdit={this.startEditPostHandler.bind(
-										this,
-										post._id
-									)}
-									onDelete={this.deletePostHandler.bind(
-										this,
-										post._id
-									)}
-								/>
-							))}
-						</Paginator>
-					)}
-				</section>
-			</Fragment>
-		);
-	}
-}
+				</form>
+			</section>
+			<section className="feed__control">
+				<Button mode="raised" design="accent" onClick={newPostHandler}>
+					New Post
+				</Button>
+			</section>
+			<section className="feed">
+				{state.postsLoading && (
+					<div style={{ textAlign: "center", marginTop: "2rem" }}>
+						<Loader />
+					</div>
+				)}
+				{state.posts.length <= 0 && !state.postsLoading ? (
+					<p style={{ textAlign: "center" }}>No posts found.</p>
+				) : null}
+				{!state.postsLoading && (
+					<Paginator
+						onPrevious={loadPosts.bind(this, "previous")}
+						onNext={loadPosts.bind(this, "next")}
+						lastPage={Math.ceil(state.totalPosts / 2)}
+						currentPage={state.postPage}
+					>
+						{state.posts.map((post) => (
+							<Post
+								key={post._id}
+								id={post._id}
+								author={post.creator.name}
+								date={new Date(
+									post.createdAt
+								).toLocaleDateString("en-US")}
+								title={post.title}
+								image={post.imageUrl}
+								content={post.content}
+								onStartEdit={startEditPostHandler.bind(
+									this,
+									post._id
+								)}
+								onDelete={deletePostHandler.bind(
+									this,
+									post._id
+								)}
+							/>
+						))}
+					</Paginator>
+				)}
+			</section>
+		</Fragment>
+	);
+};
 
 export default Feed;
