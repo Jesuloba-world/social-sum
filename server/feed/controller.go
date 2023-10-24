@@ -30,6 +30,9 @@ func createPost(c *fiber.Ctx) error {
 	if err := c.BodyParser(post); err != nil {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
 	}
+
+	post.CreatedAt = time.Now()
+	post.Creator = creator{Name: "Jack Berry"}
 	// create post in db
 	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created sucessfully!", Post: post})
 }

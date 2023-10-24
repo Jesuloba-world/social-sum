@@ -69,6 +69,7 @@ const Feed = () => {
 					return res.json();
 				})
 				.then((resData) => {
+					console.log(resData);
 					setState((prev) => ({
 						...prev,
 						posts: resData,
@@ -140,12 +141,21 @@ const Feed = () => {
 	const finishEditHandler = (postData: post) => {
 		setState((prev) => ({ ...prev, editLoading: true }));
 		// Set up data (with image!)
-		let url = "URL";
+		let url = `${import.meta.env.VITE_API_BASE_URL}/feed/post`;
+		let method = "POST";
 		if (state.editPost) {
 			url = "URL";
+			method = "PUT";
 		}
 
-		fetch(url)
+		fetch(url, {
+			method,
+			headers: { "Content-type": "application/json" },
+			body: JSON.stringify({
+				title: postData.title,
+				content: postData.content,
+			}),
+		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
 					throw new Error("Creating or editing a post failed!");
