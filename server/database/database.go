@@ -9,16 +9,18 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
 )
 
 var (
-	Client *mongo.Client
+	DB *mongo.Client
 )
 
 func Connect() func() {
 	// Set client options
-	clientOptions := options.Client().ApplyURI(fmt.Sprintf("mongodb+srv://jesuloba:%s@socialsumcluster.eprbbju.mongodb.net/?retryWrites=true&w=majority", os.Getenv("MONGO_PASSWORD")))
+	clientOptions := options.Client().ApplyURI(fmt.Sprintf(
+		"mongodb+srv://social-sum:%s@socialsumcluster.eprbbju.mongodb.net/?retryWrites=true&w=majority",
+		os.Getenv("MONGO_PASSWORD"),
+	))
 
 	// Connect to MongoDB
 	client, err := mongo.Connect(context.TODO(), clientOptions)
@@ -30,13 +32,13 @@ func Connect() func() {
 	// Check the connection
 	err = client.Ping(context.TODO(), nil)
 
-	slog.Info("Connection to MongoDB successful")
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	Client = client
+	slog.Info("Connection to MongoDB successful")
+
+	DB = client
 
 	return func() {
 		if err = client.Disconnect(context.TODO()); err != nil {
