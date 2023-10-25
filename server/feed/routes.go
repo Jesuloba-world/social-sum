@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-
 )
 
 var Validator = validator.New()
@@ -23,8 +22,8 @@ func validateCreatePost(c *fiber.Ctx) error {
 	validationErr := Validator.Struct(post)
 	if validationErr != nil {
 		return c.Status(http.StatusUnprocessableEntity).JSON(Error{
-			Message: "Validation failed, entered data is incorrect", 
-			Errors: validationErr.Error(),
+			Message: "Validation failed, entered data is incorrect",
+			Errors:  validationErr.Error(),
 		})
 	}
 
@@ -35,4 +34,5 @@ func Router(app *fiber.App) {
 	api := app.Group("/feed")
 	api.Get("/posts", getPosts)
 	api.Post("/post", validateCreatePost, createPost)
+	api.Get("/post/:postId", getPost)
 }

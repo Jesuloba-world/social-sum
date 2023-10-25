@@ -69,11 +69,10 @@ const Feed = () => {
 					return res.json();
 				})
 				.then((resData) => {
-					console.log(resData);
 					setState((prev) => ({
 						...prev,
-						posts: resData,
-						totalPosts: resData.length,
+						posts: resData.posts,
+						totalPosts: resData.posts.length,
 						postsLoading: false,
 					}));
 				})

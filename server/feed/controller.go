@@ -3,29 +3,51 @@ package feed
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/Jesuloba-world/social-sum/server/database"
 )
 
-type createPostSerializer struct {
+type postSerializer struct {
 	Message string `json:"message"`
 	Post    *Post  `json:"post"`
 }
 
+type allPostSerializer struct {
+	Message string `json:"message"`
+	Posts   []Post `json:"posts"`
+}
+
 func getPosts(c *fiber.Ctx) error {
-	return c.Status(http.StatusOK).JSON([]Post{{
-		Title:    "First Post",
-		Content:  "This is the first post!",
-		ImageURL: "/images/cook.jpg",
-		Creator: creator{
-			Name: "John Needle",
-		},
-		CreatedAt: time.Now(),
-	}})
+	PostCollection := database.Client.Database("Feed").Collection("Post")
+
+	var posts []Post
+
+	// Find all documents in the collection
+	cursor, err := PostCollection.Find(context.TODO(), bson.M{})
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+	defer cursor.Close(context.TODO())
+
+	// Iterate over the cursor and decode each document into a Post struct
+	for cursor.Next(context.TODO()) {
+		var post Post
+		if err := cursor.Decode(&post); err != nil {
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+		}
+		posts = append(posts, post)
+	}
+
+	// Check if any error occurred during iteration
+	if err := cursor.Err(); err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return c.Status(http.StatusOK).JSON(allPostSerializer{Message: "Posts fetched successfully", Posts: posts})
 }
 
 func createPost(c *fiber.Ctx) error {
@@ -52,5 +74,27 @@ func createPost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created successfully", Post: insertedPost})
+	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost})
+}
+
+func getPost(c *fiber.Ctx) error {
+	postId := c.Params("postId")
+	PostCollection := database.Client.Database("Feed").Collection("Post")
+
+	post := new(Post)
+
+	objectId, err := primitive.ObjectIDFromHex(postId)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).SendString("Invalid Id")
+	}
+
+	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(post)
+	if err != nil {
+		// return c.Status(http.StatusBadRequest).SendString(err.Error())
+		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
+	}
+
+	post.ImageURL = "images/cook.jpg"
+
+	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post fetched successfully", Post: post})
 }
