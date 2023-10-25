@@ -3,6 +3,7 @@ package feed
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,13 +18,13 @@ type createPostSerializer struct {
 
 func getPosts(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON([]Post{{
-		Title:   "First Post",
-		Content: "This is the first post!",
-		// ImageURL: "images/cook.jpg",
+		Title:    "First Post",
+		Content:  "This is the first post!",
+		ImageURL: "/images/cook.jpg",
 		Creator: creator{
 			Name: "John Needle",
 		},
-		// CreatedAt: time.Now(),
+		CreatedAt: time.Now(),
 	}})
 }
 
@@ -41,14 +42,14 @@ func createPost(c *fiber.Ctx) error {
 	// create post in db
 	result, err := PostCollection.InsertOne(context.TODO(), post)
 	if err != nil {
-		panic(err)
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
 	// Retrieve the inserted document from the database
 	insertedPost := new(Post)
 	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": result.InsertedID}).Decode(insertedPost)
 	if err != nil {
-		panic(err)
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
 	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created successfully", Post: insertedPost})

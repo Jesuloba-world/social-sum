@@ -9,7 +9,6 @@ import (
 
 	"github.com/Jesuloba-world/social-sum/server/database"
 	"github.com/Jesuloba-world/social-sum/server/feed"
-
 )
 
 func main() {
@@ -26,6 +25,8 @@ func main() {
 	disconnect := database.Connect()
 
 	defer disconnect()
+
+	app.Static("/images", "./images")
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
