@@ -1,10 +1,13 @@
 package feed
 
 import (
+	"context"
 	"net/http"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
+
+	"github.com/Jesuloba-world/social-sum/server/database"
 )
 
 type createPostSerializer struct {
@@ -14,25 +17,39 @@ type createPostSerializer struct {
 
 func getPosts(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON([]Post{{
-		Id:       "1",
-		Title:    "First Post",
-		Content:  "This is the first post!",
-		ImageUrl: "images/cook.jpg",
+		Title:   "First Post",
+		Content: "This is the first post!",
+		// ImageURL: "images/cook.jpg",
 		Creator: creator{
 			Name: "John Needle",
 		},
-		CreatedAt: time.Now(),
+		// CreatedAt: time.Now(),
 	}})
 }
 
 func createPost(c *fiber.Ctx) error {
+	PostCollection := database.Client.Database("Feed").Collection("Post")
+
 	post := new(Post)
 	if err := c.BodyParser(post); err != nil {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
 	}
 
-	post.CreatedAt = time.Now()
+	post.SetTimestamps()
 	post.Creator = creator{Name: "Jack Berry"}
+
 	// create post in db
-	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created sucessfully!", Post: post})
+	result, err := PostCollection.InsertOne(context.TODO(), post)
+	if err != nil {
+		panic(err)
+	}
+
+	// Retrieve the inserted document from the database
+	insertedPost := new(Post)
+	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": result.InsertedID}).Decode(insertedPost)
+	if err != nil {
+		panic(err)
+	}
+
+	return c.Status(http.StatusCreated).JSON(createPostSerializer{Message: "Post created successfully", Post: insertedPost})
 }

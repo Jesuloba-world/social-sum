@@ -1,6 +1,11 @@
 package feed
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+)
 
 type (
 	creator struct {
@@ -8,11 +13,20 @@ type (
 	}
 
 	Post struct {
-		Id        string    `json:"_id"`
-		Title     string    `json:"title" validate:"required,min=5"`
-		Content   string    `json:"content" validate:"required,min=5"`
-		ImageUrl  string    `json:"imageUrl"`
-		Creator   creator   `json:"creator"`
-		CreatedAt time.Time `json:"createdAt"`
+		ID        primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+		Title     string             `bson:"title" json:"title" validate:"required,min=5"`
+		Content   string             `bson:"content" json:"content" validate:"required,min=5"`
+		ImageURL  string             `bson:"imageUrl" json:"imageUrl"`
+		Creator   creator            `bson:"creator" json:"creator"`
+		CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+		UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
 	}
 )
+
+func (p *Post) SetTimestamps() {
+	now := time.Now()
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = now
+	}
+	p.UpdatedAt = now
+}

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	DB *mongo.Client
+	Client *mongo.Client
 )
 
 func Connect() func() {
@@ -38,7 +38,7 @@ func Connect() func() {
 
 	slog.Info("Connection to MongoDB successful")
 
-	DB = client
+	Client = client
 
 	return func() {
 		if err = client.Disconnect(context.TODO()); err != nil {
