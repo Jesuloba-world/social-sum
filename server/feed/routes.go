@@ -5,18 +5,39 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+
 )
 
 var Validator = validator.New()
 
 func validateCreatePost(c *fiber.Ctx) error {
-	post := new(Post)
+	post := new(createPostInput)
 
-	if err := c.BodyParser(post); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(Error{
-			Message: "Validation failed, entered data is incorrect",
-			Errors:  err.Error(),
-		})
+	// Check the Content-Type header
+	if c.Get("Content-Type") == "application/json" {
+		println("Json")
+		// Parse JSON body
+		if err := c.BodyParser(post); err != nil {
+			return c.Status(http.StatusBadRequest).JSON(Error{
+				Message: "Validation failed, entered data is incorrect",
+				Errors:  err.Error(),
+			})
+		}
+	} else {
+		// Parse form data
+		post.Title = c.FormValue("title")
+		post.Content = c.FormValue("content")
+
+		// Handle file check for image
+		file, err := c.FormFile("image")
+		if err != nil {
+			return c.Status(http.StatusBadRequest).JSON(Error{
+				Message: "Image upload failed",
+				Errors:  err.Error(),
+			})
+		}
+
+		post.Image = file
 	}
 
 	validationErr := Validator.Struct(post)

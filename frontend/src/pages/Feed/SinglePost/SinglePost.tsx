@@ -31,7 +31,6 @@ const SinglePost = () => {
 				return res.json();
 			})
 			.then((resData) => {
-				console.log(resData);
 				setState((prev) => ({
 					...prev,
 					title: resData.post.title,

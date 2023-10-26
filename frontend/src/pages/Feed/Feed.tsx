@@ -72,7 +72,7 @@ const Feed = () => {
 					setState((prev) => ({
 						...prev,
 						posts: resData.posts,
-						totalPosts: resData.posts.length,
+						totalPosts: resData.posts?.length || 0,
 						postsLoading: false,
 					}));
 				})
@@ -137,7 +137,11 @@ const Feed = () => {
 		setState((prev) => ({ ...prev, isEditing: false, editPost: null }));
 	};
 
-	const finishEditHandler = (postData: post) => {
+	const finishEditHandler = (postData: {
+		title: string;
+		content: string;
+		image: File;
+	}) => {
 		setState((prev) => ({ ...prev, editLoading: true }));
 		// Set up data (with image!)
 		let url = `${import.meta.env.VITE_API_BASE_URL}/feed/post`;
@@ -147,13 +151,14 @@ const Feed = () => {
 			method = "PUT";
 		}
 
+		const formData = new FormData();
+		formData.append("title", postData.title);
+		formData.append("content", postData.content);
+		formData.append("image", postData.image);
+
 		fetch(url, {
 			method,
-			headers: { "Content-type": "application/json" },
-			body: JSON.stringify({
-				title: postData.title,
-				content: postData.content,
-			}),
+			body: formData,
 		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
@@ -162,6 +167,7 @@ const Feed = () => {
 				return res.json();
 			})
 			.then((resData) => {
+				console.log(resData);
 				const post = {
 					_id: resData.post._id,
 					title: resData.post.title,
@@ -275,7 +281,7 @@ const Feed = () => {
 						<Loader />
 					</div>
 				)}
-				{state.posts.length <= 0 && !state.postsLoading ? (
+				{state.totalPosts <= 0 && !state.postsLoading ? (
 					<p style={{ textAlign: "center" }}>No posts found.</p>
 				) : null}
 				{!state.postsLoading && (
@@ -285,27 +291,28 @@ const Feed = () => {
 						lastPage={Math.ceil(state.totalPosts / 2)}
 						currentPage={state.postPage}
 					>
-						{state.posts.map((post) => (
-							<Post
-								key={post._id}
-								id={post._id}
-								author={post.creator.name}
-								date={new Date(
-									post.createdAt
-								).toLocaleDateString("en-US")}
-								title={post.title}
-								image={post.imageUrl}
-								content={post.content}
-								onStartEdit={startEditPostHandler.bind(
-									this,
-									post._id
-								)}
-								onDelete={deletePostHandler.bind(
-									this,
-									post._id
-								)}
-							/>
-						))}
+						{state.totalPosts > 0 &&
+							state.posts.map((post) => (
+								<Post
+									key={post._id}
+									id={post._id}
+									author={post.creator.name}
+									date={new Date(
+										post.createdAt
+									).toLocaleDateString("en-US")}
+									title={post.title}
+									image={post.imageUrl}
+									content={post.content}
+									onStartEdit={startEditPostHandler.bind(
+										this,
+										post._id
+									)}
+									onDelete={deletePostHandler.bind(
+										this,
+										post._id
+									)}
+								/>
+							))}
 					</Paginator>
 				)}
 			</section>

@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/Jesuloba-world/social-sum/server/database"
+
 )
 
 type postSerializer struct {
@@ -58,6 +59,21 @@ func createPost(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
 	}
 
+	// Handle file upload for ImageURL
+	file, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(Error{
+			Message: "Image upload failed",
+			Errors:  err.Error(),
+		})
+	}
+
+	// Save the file to your server and get the URL
+	// This is just an example, adjust according to your needs
+	filePath := "./images/" + file.Filename
+	c.SaveFile(file, filePath)
+	post.ImageURL = "images/" + file.Filename
+
 	post.SetTimestamps()
 	post.Creator = creator{Name: "Jack Berry"}
 
@@ -93,8 +109,6 @@ func getPost(c *fiber.Ctx) error {
 		// return c.Status(http.StatusBadRequest).SendString(err.Error())
 		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
 	}
-
-	post.ImageURL = "images/cook.jpg"
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post fetched successfully", Post: post})
 }
