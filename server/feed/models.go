@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
-
 )
 
 type (
@@ -14,8 +13,8 @@ type (
 
 	Post struct {
 		ID        primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
-		Title     string             `bson:"title" json:"title" validate:"required,min=5"`
-		Content   string             `bson:"content" json:"content" validate:"required,min=5"`
+		Title     string             `bson:"title" json:"title"`
+		Content   string             `bson:"content" json:"content"`
 		ImageURL  string             `bson:"imageUrl" json:"imageUrl"`
 		Creator   creator            `bson:"creator" json:"creator"`
 		CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`

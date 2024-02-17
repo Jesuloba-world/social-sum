@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-
 )
 
 var Validator = validator.New()
@@ -15,7 +14,6 @@ func validateCreatePost(c *fiber.Ctx) error {
 
 	// Check the Content-Type header
 	if c.Get("Content-Type") == "application/json" {
-		println("Json")
 		// Parse JSON body
 		if err := c.BodyParser(post); err != nil {
 			return c.Status(http.StatusBadRequest).JSON(Error{
@@ -56,4 +54,5 @@ func Router(app *fiber.App) {
 	api.Get("/posts", getPosts)
 	api.Post("/post", validateCreatePost, createPost)
 	api.Get("/post/:postId", getPost)
+	api.Put("/post/:postId", updatePost)
 }

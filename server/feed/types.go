@@ -8,7 +8,7 @@ type Error struct {
 }
 
 type createPostInput struct {
-	Title   string                `json:"title"`
-	Content string                `json:"content"`
-	Image   *multipart.FileHeader `json:"imageUrl"`
+	Title   string                `json:"title" validate:"required,min=5"`
+	Content string                `json:"content" validate:"required,min=5"`
+	Image   *multipart.FileHeader `json:"imageUrl" validate:"required"`
 }

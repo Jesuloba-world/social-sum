@@ -7,9 +7,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Jesuloba-world/social-sum/server/database"
-
 )
 
 type postSerializer struct {
@@ -111,4 +111,38 @@ func getPost(c *fiber.Ctx) error {
 	}
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post fetched successfully", Post: post})
+}
+
+func updatePost(c *fiber.Ctx) error {
+	postId := c.Params("postId")
+	PostCollection := database.Client.Database("Feed").Collection("Post")
+
+	objectId, err := primitive.ObjectIDFromHex(postId)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).SendString("Invalid Id")
+	}
+
+	post := new(Post)
+	if err := c.BodyParser(post); err != nil {
+		return c.Status(http.StatusBadRequest).SendString(err.Error())
+	}
+
+	post.SetTimestamps()
+
+	update := bson.M{
+		"$set": bson.M{
+			"title":     post.Title,
+			"content":   post.Content,
+			"updatedAt": post.UpdatedAt,
+			"creator":   post.Creator,
+		},
+	}
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	err = PostCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": objectId}, update, opts).Decode(post)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post updated successfully", Post: post})
 }
