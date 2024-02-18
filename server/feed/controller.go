@@ -2,6 +2,8 @@ package feed
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Jesuloba-world/social-sum/server/database"
+
 )
 
 type postSerializer struct {
@@ -122,9 +125,34 @@ func updatePost(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).SendString("Invalid Id")
 	}
 
+	oldPost := new(Post)
+	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(oldPost)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
+	}
+
 	post := new(Post)
 	if err := c.BodyParser(post); err != nil {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
+	}
+
+	file, err := c.FormFile("image")
+	if err != nil {
+		if c.FormValue("image") == "" {
+			return c.Status(http.StatusUnprocessableEntity).JSON(Error{
+				Message: "No file picked.",
+				Errors:  err.Error(),
+			})
+		}
+		post.ImageURL = c.FormValue("image")
+	} else {
+		filePath := "./images/" + file.Filename
+		c.SaveFile(file, filePath)
+		post.ImageURL = "images/" + file.Filename
+	}
+
+	if post.ImageURL != oldPost.ImageURL {
+		clearImage(oldPost.ImageURL)
 	}
 
 	post.SetTimestamps()
@@ -133,8 +161,9 @@ func updatePost(c *fiber.Ctx) error {
 		"$set": bson.M{
 			"title":     post.Title,
 			"content":   post.Content,
+			"imageUrl":  post.ImageURL,
 			"updatedAt": post.UpdatedAt,
-			"creator":   post.Creator,
+			// "creator":   post.Creator,
 		},
 	}
 
@@ -143,6 +172,8 @@ func updatePost(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
+
+	slog.Info(fmt.Sprintf("post with id %s updated successfully", postId))
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post updated successfully", Post: post})
 }

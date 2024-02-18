@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+
 )
 
 var Validator = validator.New()
@@ -29,13 +30,18 @@ func validateCreatePost(c *fiber.Ctx) error {
 		// Handle file check for image
 		file, err := c.FormFile("image")
 		if err != nil {
-			return c.Status(http.StatusBadRequest).JSON(Error{
-				Message: "Image upload failed",
-				Errors:  err.Error(),
-			})
+			if c.FormValue("image") == "" {
+				return c.Status(http.StatusBadRequest).JSON(Error{
+					Message: "Image upload failed",
+					Errors:  err.Error(),
+				})
+			}
 		}
 
-		post.Image = file
+		post.Image = imageField{
+			File: file,
+			URL:  c.FormValue("image"),
+		}
 	}
 
 	validationErr := Validator.Struct(post)
@@ -54,5 +60,5 @@ func Router(app *fiber.App) {
 	api.Get("/posts", getPosts)
 	api.Post("/post", validateCreatePost, createPost)
 	api.Get("/post/:postId", getPost)
-	api.Put("/post/:postId", updatePost)
+	api.Put("/post/:postId", validateCreatePost, updatePost)
 }

@@ -71,7 +71,9 @@ const Feed = () => {
 				.then((resData) => {
 					setState((prev) => ({
 						...prev,
-						posts: resData.posts,
+						posts: resData.posts.map((post: post) => {
+							return { ...post, imagePath: post.imageUrl };
+						}),
 						totalPosts: resData.posts?.length || 0,
 						postsLoading: false,
 					}));
@@ -147,7 +149,9 @@ const Feed = () => {
 		let url = `${import.meta.env.VITE_API_BASE_URL}/feed/post`;
 		let method = "POST";
 		if (state.editPost) {
-			url = "URL";
+			url = `${import.meta.env.VITE_API_BASE_URL}/feed/post/${
+				state.editPost._id
+			}`;
 			method = "PUT";
 		}
 
