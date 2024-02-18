@@ -9,10 +9,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Jesuloba-world/social-sum/server/database"
-
 )
 
 type postSerializer struct {
@@ -176,4 +176,30 @@ func updatePost(c *fiber.Ctx) error {
 	slog.Info(fmt.Sprintf("post with id %s updated successfully", postId))
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post updated successfully", Post: post})
+}
+
+func deletePost(c *fiber.Ctx) error {
+	postId := c.Params("postId")
+	PostCollection := database.Client.Database("Feed").Collection("Post")
+
+	objectId, err := primitive.ObjectIDFromHex(postId)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).SendString("Invalid Id")
+	}
+
+	deletedPost := new(Post)
+	opts := options.FindOneAndDelete().SetProjection(bson.M{"_id": 1, "imageUrl": 1})
+	err = PostCollection.FindOneAndDelete(context.TODO(), bson.M{"_id": objectId}, opts).Decode(deletedPost)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(http.StatusNotFound).SendString("Post not found")
+		}
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	slog.Info(fmt.Sprintf("post with id %s deleted successfully", postId))
+
+	clearImage(deletedPost.ImageURL)
+
+	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post deleted successfully", Post: deletedPost})
 }

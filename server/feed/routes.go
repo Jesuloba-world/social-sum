@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-
 )
 
 var Validator = validator.New()
@@ -61,4 +60,5 @@ func Router(app *fiber.App) {
 	api.Post("/post", validateCreatePost, createPost)
 	api.Get("/post/:postId", getPost)
 	api.Put("/post/:postId", validateCreatePost, updatePost)
+	api.Delete("/post/:postId", deletePost)
 }

@@ -61,7 +61,9 @@ const Feed = () => {
 				page--;
 				setState((prev) => ({ ...prev, postPage: page }));
 			}
-			fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/posts`)
+			fetch(
+				`${import.meta.env.VITE_API_BASE_URL}/feed/posts?page=${page}`
+			)
 				.then((res) => {
 					if (res.status !== 200) {
 						throw new Error("Failed to fetch posts.");
@@ -186,7 +188,7 @@ const Feed = () => {
 							(p) => p._id === prevState.editPost?._id
 						);
 						updatedPosts[postIndex] = post;
-					} else if (prevState.posts.length < 2) {
+					} else {
 						updatedPosts = prevState.posts.concat(post as post);
 					}
 					return {
@@ -216,7 +218,9 @@ const Feed = () => {
 
 	const deletePostHandler = (postId: string) => {
 		setState((prev) => ({ ...prev, postsLoading: true }));
-		fetch("URL")
+		fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/post/${postId}`, {
+			method: "DELETE",
+		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
 					throw new Error("Deleting a post failed!");
