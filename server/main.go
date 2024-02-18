@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 
+	"github.com/Jesuloba-world/social-sum/server/auth"
 	"github.com/Jesuloba-world/social-sum/server/database"
 	"github.com/Jesuloba-world/social-sum/server/feed"
 )
@@ -34,6 +35,7 @@ func main() {
 		AllowHeaders: "Content-Type, Authorization",
 	}))
 
+	auth.Router(app)
 	feed.Router(app)
 
 	app.Listen(":8000")

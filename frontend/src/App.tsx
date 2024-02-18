@@ -16,7 +16,7 @@ import "./App.css";
 const App = () => {
 	const [showBackdrop, setShowBackdrop] = useState(false);
 	const [showMobileNav, setShowMobileNav] = useState(false);
-	const [isAuth, setIsAuth] = useState(true);
+	const [isAuth, setIsAuth] = useState(false);
 	const [token, setToken] = useState<string | null>(null);
 	const [userId, setUserId] = useState<string | null>(null);
 	const [authLoading, setAuthLoading] = useState(false);
@@ -107,10 +107,30 @@ const App = () => {
 			});
 	};
 
-	const signupHandler = (event: Event, authData: any) => {
+	const signupHandler = (
+		event: Event,
+		authData: {
+			signupForm: {
+				email: { value: string };
+				password: { value: string };
+				name: { value: string };
+			};
+		}
+	) => {
 		event.preventDefault();
+		console.log(authData);
 		setAuthLoading(true);
-		fetch("URL")
+		fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/signup`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				email: authData.signupForm.email.value,
+				password: authData.signupForm.password.value,
+				name: authData.signupForm.name.value,
+			}),
+		})
 			.then((res) => {
 				if (res.status === 422) {
 					throw new Error(
