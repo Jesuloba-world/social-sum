@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
@@ -21,21 +22,30 @@ type postSerializer struct {
 }
 
 type allPostSerializer struct {
-	Message string `json:"message"`
-	Posts   []Post `json:"posts"`
+	Message    string `json:"message"`
+	Posts      []Post `json:"posts"`
+	TotalItems int64  `json:"totalItems"`
 }
 
 func getPosts(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "2"))
+
 	PostCollection := database.Client.Database("Feed").Collection("Post")
 
-	var posts []Post
+	skip := (page - 1) * limit
+
+	opts := options.Find().SetLimit(int64(limit)).SetSkip(int64(skip))
 
 	// Find all documents in the collection
-	cursor, err := PostCollection.Find(context.TODO(), bson.M{})
+	cursor, err := PostCollection.Find(context.TODO(), bson.M{}, opts)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
+
 	defer cursor.Close(context.TODO())
+
+	var posts []Post
 
 	// Iterate over the cursor and decode each document into a Post struct
 	for cursor.Next(context.TODO()) {
@@ -51,7 +61,13 @@ func getPosts(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	return c.Status(http.StatusOK).JSON(allPostSerializer{Message: "Posts fetched successfully", Posts: posts})
+	// Get the total number of documents in the collection
+	total, err := PostCollection.CountDocuments(context.TODO(), bson.M{})
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return c.Status(http.StatusOK).JSON(allPostSerializer{Message: "Posts fetched successfully", Posts: posts, TotalItems: total})
 }
 
 func createPost(c *fiber.Ctx) error {

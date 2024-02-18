@@ -71,12 +71,13 @@ const Feed = () => {
 					return res.json();
 				})
 				.then((resData) => {
+					console.log(resData);
 					setState((prev) => ({
 						...prev,
 						posts: resData.posts.map((post: post) => {
 							return { ...post, imagePath: post.imageUrl };
 						}),
-						totalPosts: resData.posts?.length || 0,
+						totalPosts: resData.totalItems || 0,
 						postsLoading: false,
 					}));
 				})
@@ -188,7 +189,7 @@ const Feed = () => {
 							(p) => p._id === prevState.editPost?._id
 						);
 						updatedPosts[postIndex] = post;
-					} else {
+					} else if (prevState.posts.length < 2) {
 						updatedPosts = prevState.posts.concat(post as post);
 					}
 					return {
