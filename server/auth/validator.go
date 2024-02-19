@@ -13,19 +13,13 @@ import (
 
 var Validator = validator.New()
 
-type signupInput struct {
-	Email    string `json:"email" validate:"required,email"`
-	Name     string `json:"name" validate:"required"`
-	Password string `json:"password" validate:"required,min=5"`
-}
-
 func validateSignup(c *fiber.Ctx) error {
 	input := new(signupInput)
 
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(Error{
 			Message: "Validation failed, entered data is incorrect",
-			Errors:  err.Error(),
+			Error:   err.Error(),
 		})
 	}
 
@@ -34,17 +28,40 @@ func validateSignup(c *fiber.Ctx) error {
 	if validationErr != nil {
 		return c.Status(http.StatusUnprocessableEntity).JSON(Error{
 			Message: "Validation failed",
-			Errors:  validationErr.Error(),
+			Error:   validationErr.Error(),
 		})
 	}
 
+	// check
 	userCollection := database.Client.Database("Auth").Collection("User")
 	filter := bson.M{"email": input.Email}
-	var result bson.M
+	result := new(User)
 	err := userCollection.FindOne(context.TODO(), filter).Decode(result)
 
-	if err == nil {
-		return c.Status(http.StatusBadRequest).SendString("Email already exists")
+	if err == nil && result.Email != "" {
+		return c.Status(http.StatusBadRequest).SendString("The User already exists")
+	}
+
+	return c.Next()
+}
+
+func validateLogin(c *fiber.Ctx) error {
+	input := new(loginInput)
+
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(Error{
+			Message: "An error occured",
+			Error:   err.Error(),
+		})
+	}
+
+	validationErr := Validator.Struct(input)
+
+	if validationErr != nil {
+		return c.Status(http.StatusUnprocessableEntity).JSON(Error{
+			Message: "Validation failed",
+			Error:   validationErr.Error(),
+		})
 	}
 
 	return c.Next()

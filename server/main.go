@@ -10,6 +10,7 @@ import (
 	"github.com/Jesuloba-world/social-sum/server/auth"
 	"github.com/Jesuloba-world/social-sum/server/database"
 	"github.com/Jesuloba-world/social-sum/server/feed"
+
 )
 
 func main() {
@@ -30,9 +31,10 @@ func main() {
 	app.Static("/images", "./images")
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH",
-		AllowHeaders: "Content-Type, Authorization",
+		AllowOrigins:     "http://localhost:5173",
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH",
+		AllowHeaders:     "Content-Type, Authorization",
+		AllowCredentials: true,
 	}))
 
 	auth.Router(app)

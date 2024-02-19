@@ -1,6 +1,8 @@
 package auth
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"golang.org/x/crypto/bcrypt"
+)
 
 func hashPassword(password string) (string, error) {
 	// The cost factor  10 is a good balance between security and performance.
