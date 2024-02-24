@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,8 +17,6 @@ import (
 
 	"github.com/Jesuloba-world/social-sum/server/database"
 )
-
-const SecretKey = "4nJ6rP8V9z3x7y1O4m2N6pQ8K3L6M9N0"
 
 type userSerializer struct {
 	Message string `json:"message"`
@@ -99,7 +98,7 @@ func login(c *fiber.Ctx) error {
 	})
 
 	// sign the the claim
-	token, err := claim.SignedString([]byte(SecretKey))
+	token, err := claim.SignedString([]byte(os.Getenv("SECRET_KEY")))
 
 	if err != nil {
 		slog.Error(fmt.Sprintf("could not login: %s", err.Error()))

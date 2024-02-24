@@ -20,7 +20,7 @@ interface post {
 	content: string;
 }
 
-const Feed = () => {
+const Feed = (props: { token: string | null; userId: string | null }) => {
 	const [state, setState] = useState<{
 		isEditing: boolean;
 		posts: post[];
@@ -62,7 +62,12 @@ const Feed = () => {
 				setState((prev) => ({ ...prev, postPage: page }));
 			}
 			fetch(
-				`${import.meta.env.VITE_API_BASE_URL}/feed/posts?page=${page}`
+				`${import.meta.env.VITE_API_BASE_URL}/feed/posts?page=${page}`,
+				{
+					headers: {
+						Authorization: `Bearer ${props.token}`,
+					},
+				}
 			)
 				.then((res) => {
 					if (res.status !== 200) {
