@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func clearImage(filePath string) error {
@@ -24,4 +27,20 @@ func clearImage(filePath string) error {
 	}
 
 	return nil
+}
+
+func getUserIdFromLocals(c *fiber.Ctx) (primitive.ObjectID, error) {
+	userIdInterface := c.Locals("user_id")
+	if userIdInterface != nil {
+		userId, ok := userIdInterface.(string)
+		if !ok {
+			return primitive.ObjectID{}, fmt.Errorf("type assertion failed")
+		}
+		userIdObj, err := primitive.ObjectIDFromHex(userId)
+		if err != nil {
+			return primitive.ObjectID{}, err
+		}
+		return userIdObj, nil
+	}
+	return primitive.NewObjectID(), fmt.Errorf("user not found")
 }

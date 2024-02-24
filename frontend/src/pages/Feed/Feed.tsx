@@ -171,6 +171,7 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 		fetch(url, {
 			method,
 			body: formData,
+			credentials: "include",
 		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {

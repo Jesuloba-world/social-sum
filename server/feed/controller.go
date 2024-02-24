@@ -13,12 +13,19 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"github.com/Jesuloba-world/social-sum/server/auth"
 	"github.com/Jesuloba-world/social-sum/server/database"
 )
 
 type postSerializer struct {
-	Message string `json:"message"`
-	Post    *Post  `json:"post"`
+	Message string  `json:"message"`
+	Post    *Post   `json:"post"`
+	Creator creator `json:"creator"`
+}
+
+type creator struct {
+	ID   primitive.ObjectID `json:"_id"`
+	Name string             `json:"name"`
 }
 
 type allPostSerializer struct {
@@ -94,7 +101,21 @@ func createPost(c *fiber.Ctx) error {
 	post.ImageURL = "images/" + file.Filename
 
 	post.SetTimestamps()
-	post.Creator = creator{Name: "Jack Berry"}
+
+	// add user_id as post creator
+	userId, err := getUserIdFromLocals(c)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+	post.Creator = userId
+
+	// get user object
+	UserCollection := database.Client.Database("Auth").Collection("User")
+	user := new(auth.User)
+	err = UserCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
 
 	// create post in db
 	result, err := PostCollection.InsertOne(context.TODO(), post)
@@ -109,7 +130,25 @@ func createPost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost})
+	// append new post
+	user.Posts = append(user.Posts, insertedPost.ID)
+
+	user.SetTimestamps()
+
+	// update database
+	update := bson.M{
+		"$set": bson.M{
+			"posts":     user.Posts,
+			"updatedAt": user.UpdatedAt,
+		},
+	}
+
+	_, err = UserCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost, Creator: creator{ID: user.ID, Name: user.Name}})
 }
 
 func getPost(c *fiber.Ctx) error {
@@ -197,6 +236,20 @@ func updatePost(c *fiber.Ctx) error {
 func deletePost(c *fiber.Ctx) error {
 	postId := c.Params("postId")
 	PostCollection := database.Client.Database("Feed").Collection("Post")
+	UserCollection := database.Client.Database("Auth").Collection("User")
+
+	// get userId
+	userId, err := getUserIdFromLocals(c)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	// get user object
+	user := new(auth.User)
+	err = UserCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
 
 	objectId, err := primitive.ObjectIDFromHex(postId)
 	if err != nil {
@@ -204,8 +257,8 @@ func deletePost(c *fiber.Ctx) error {
 	}
 
 	deletedPost := new(Post)
-	opts := options.FindOneAndDelete().SetProjection(bson.M{"_id": 1, "imageUrl": 1})
-	err = PostCollection.FindOneAndDelete(context.TODO(), bson.M{"_id": objectId}, opts).Decode(deletedPost)
+	opts := options.FindOne().SetProjection(bson.M{"_id": 1, "imageUrl": 1, "creator": 1})
+	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}, opts).Decode(deletedPost)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return c.Status(http.StatusNotFound).SendString("Post not found")
@@ -213,9 +266,51 @@ func deletePost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
+	if deletedPost.Creator != user.ID {
+		return c.Status(http.StatusUnauthorized).SendString("You are not authorized to delete this post")
+	}
+
+	result, err := PostCollection.DeleteOne(context.TODO(), bson.M{"_id": deletedPost.ID})
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	if result.DeletedCount <= 0 {
+		return c.Status(http.StatusInternalServerError).SendString("No document deleted")
+	}
+
+	// find the deleted post
+	postIndex := -1
+	for i, postId := range user.Posts {
+		if postId == deletedPost.ID {
+			postIndex = i
+			break
+		}
+	}
+
+	// if the post is in the user's post array, remove it
+	if postIndex != -1 {
+		user.Posts = append(user.Posts[:postIndex], user.Posts[postIndex+1:]...)
+
+		user.SetTimestamps()
+
+		// update database
+		update := bson.M{
+			"$set": bson.M{
+				"posts":     user.Posts,
+				"updatedAt": user.UpdatedAt,
+			},
+		}
+
+		_, err = UserCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+		}
+	}
+
 	slog.Info(fmt.Sprintf("post with id %s deleted successfully", postId))
 
 	clearImage(deletedPost.ImageURL)
 
-	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post deleted successfully", Post: deletedPost})
+	return c.Status(http.StatusOK).SendString("Post deleted successfully")
 }
