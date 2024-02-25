@@ -130,7 +130,7 @@ func createPost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	// append new post
+	// append new post to user
 	user.Posts = append(user.Posts, insertedPost.ID)
 
 	user.SetTimestamps()
@@ -184,6 +184,16 @@ func updatePost(c *fiber.Ctx) error {
 	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(oldPost)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
+	}
+
+	// get userId
+	userId, err := getUserIdFromLocals(c)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	if oldPost.Creator != userId {
+		return c.Status(http.StatusUnauthorized).SendString("Not authorized!")
 	}
 
 	post := new(Post)
@@ -275,6 +285,8 @@ func deletePost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
+	clearImage(deletedPost.ImageURL)
+
 	if result.DeletedCount <= 0 {
 		return c.Status(http.StatusInternalServerError).SendString("No document deleted")
 	}
@@ -309,8 +321,6 @@ func deletePost(c *fiber.Ctx) error {
 	}
 
 	slog.Info(fmt.Sprintf("post with id %s deleted successfully", postId))
-
-	clearImage(deletedPost.ImageURL)
 
 	return c.Status(http.StatusOK).SendString("Post deleted successfully")
 }

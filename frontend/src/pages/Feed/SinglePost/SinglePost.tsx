@@ -23,7 +23,9 @@ const SinglePost = () => {
 
 	useEffect(() => {
 		const postId = params.postId;
-		fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/post/${postId}`)
+		fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/post/${postId}`, {
+			credentials: "include",
+		})
 			.then((res) => {
 				if (res.status !== 200) {
 					throw new Error("Failed to fetch status");

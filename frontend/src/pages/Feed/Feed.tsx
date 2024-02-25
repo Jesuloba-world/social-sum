@@ -11,9 +11,7 @@ import "./Feed.css";
 
 interface post {
 	_id: string;
-	creator: {
-		name: string;
-	};
+	creator: string;
 	createdAt: string;
 	title: string;
 	imageUrl?: string;
@@ -79,7 +77,7 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 					console.log(resData);
 					setState((prev) => ({
 						...prev,
-						posts: resData.posts.map((post: post) => {
+						posts: (resData.posts || []).map((post: post) => {
 							return { ...post, imagePath: post.imageUrl };
 						}),
 						totalPosts: resData.totalItems || 0,
@@ -88,7 +86,7 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 				})
 				.catch(catchError);
 		},
-		[state.postPage]
+		[state.postPage, props.token]
 	);
 
 	useEffect(() => {
@@ -171,7 +169,9 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 		fetch(url, {
 			method,
 			body: formData,
-			credentials: "include",
+			headers: {
+				Authorization: `Bearer ${props.token}`,
+			},
 		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
@@ -227,6 +227,9 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 		setState((prev) => ({ ...prev, postsLoading: true }));
 		fetch(`${import.meta.env.VITE_API_BASE_URL}/feed/post/${postId}`, {
 			method: "DELETE",
+			headers: {
+				Authorization: `Bearer ${props.token}`,
+			},
 		})
 			.then((res) => {
 				if (res.status !== 200 && res.status !== 201) {
