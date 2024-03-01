@@ -34,6 +34,18 @@ type allPostSerializer struct {
 	TotalItems int64  `json:"totalItems"`
 }
 
+//	@Summary		Get all posts
+//	@Description	Fetches all posts with pagination
+//	@Tags			Feed
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			page	query		int					false	"Page number"
+//	@Param			limit	query		int					false	"Number of posts per page"
+//	@Success		200		{object}	allPostSerializer	"Successfully fetched posts"
+//	@Failure		401		{string}	string				"Unauthorized"
+//	@Failure		500		{string}	string				"Internal Server Error"
+//	@Router			/feed/posts [get]
 func getPosts(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "2"))
@@ -77,6 +89,19 @@ func getPosts(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(allPostSerializer{Message: "Posts fetched successfully", Posts: posts, TotalItems: total})
 }
 
+//	@Summary		Create a new post
+//	@Description	Create a new post with an image and associate it with the authenticated user
+//	@Tags			Feed
+//	@Accept			json
+//	@Produce		json
+//	@Param			image	formData	file	true	"Image file"
+//	@Param			title	formData	string	true	"Title of the post"
+//	@Param			content	formData	string	true	"Content of the post"
+//	@Security		BearerAuth
+//	@Success		201	{object}	postSerializer	"Post created successfully"
+//	@Failure		400	{string}	string			"Bad Request"
+//	@Failure		500	{string}	string			"Internal Server Error"
+//	@Router			/feed/post [post]
 func createPost(c *fiber.Ctx) error {
 	PostCollection := database.Client.Database("Feed").Collection("Post")
 
@@ -151,6 +176,17 @@ func createPost(c *fiber.Ctx) error {
 	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost, Creator: creator{ID: user.ID, Name: user.Name}})
 }
 
+//	@Summary		Get a specific post
+//	@Description	Fetches a specific post by its ID
+//	@Tags			Feed
+//	@Accept			json
+//	@Produce		json
+//	@Param			postId	path	string	true	"Post ID"
+//	@Security		BearerAuth
+//	@Success		200	{object}	postSerializer	"Post fetched successfully"
+//	@Failure		400	{string}	string			"Bad Request"
+//	@Failure		500	{string}	string			"Internal Server Error"
+//	@Router			/feed/post/{postId} [get]
 func getPost(c *fiber.Ctx) error {
 	postId := c.Params("postId")
 	PostCollection := database.Client.Database("Feed").Collection("Post")
@@ -171,6 +207,21 @@ func getPost(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post fetched successfully", Post: post})
 }
 
+//	@Summary		Update a specific post
+//	@Description	Update the details of a specific post by its ID
+//	@Tags			Feed
+//	@Accept			json
+//	@Produce		json
+//	@Param			postId	path		string	true	"Post ID"
+//	@Param			image	formData	file	true	"Image file"
+//	@Param			title	formData	string	true	"Title of the post"
+//	@Param			content	formData	string	true	"Content of the post"
+//	@Security		BearerAuth
+//	@Success		200	{object}	postSerializer	"Post updated successfully"
+//	@Failure		400	{string}	string			"Bad Request"
+//	@Failure		401	{string}	string			"Unauthorized"
+//	@Failure		500	{string}	string			"Internal Server Error"
+//	@Router			/feed/post/{postId} [put]
 func updatePost(c *fiber.Ctx) error {
 	postId := c.Params("postId")
 	PostCollection := database.Client.Database("Feed").Collection("Post")
@@ -243,6 +294,18 @@ func updatePost(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post updated successfully", Post: post})
 }
 
+//	@Summary		Delete a specific post
+//	@Description	Deletes a specific post by its ID
+//	@Tags			Feed
+//	@Accept			json
+//	@Produce		json
+//	@Param			postId	path	string	true	"Post ID"
+//	@Security		BearerAuth
+//	@Success		200	{string}	string	"Post deleted successfully"
+//	@Failure		400	{string}	string	"Bad Request"
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		500	{string}	string	"Internal Server Error"
+//	@Router			/feed/post/{postId} [delete]
 func deletePost(c *fiber.Ctx) error {
 	postId := c.Params("postId")
 	PostCollection := database.Client.Database("Feed").Collection("Post")

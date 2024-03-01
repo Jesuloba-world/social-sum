@@ -28,6 +28,15 @@ type loginSerializer struct {
 	UserID string `json:"userid"`
 }
 
+// @Summary	sign up new user
+// @Tags		Auth
+// @Accept		json
+// @Produce	json
+// @Param		signupInput	body		signupInput		true	"Sign up Params"
+// @Success	200			{object}	userSerializer	"Successfully created user"
+// @Failure	400			{string}	string			"Bad Request"
+// @Failure	500			{string}	string			"Internal Server Error"
+// @Router		/auth/signup [post]
 func signup(c *fiber.Ctx) error {
 	userCollection := database.Client.Database("Auth").Collection("User")
 
@@ -64,6 +73,15 @@ func signup(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(userSerializer{Message: "User created successfully", UserID: userID})
 }
 
+// @Summary	login user
+// @Tags		Auth
+// @Accept		json
+// @Produce	json
+// @param		loginInput	body		loginInput		true	"login Params"
+// @Success	200			{object}	loginSerializer	"Successfully logged in user"
+// @Failure	400			{string}	string			"Bad Request"
+// @Failure	500			{string}	string			"Internal Server Error"
+// @Router		/auth/login [post]
 func login(c *fiber.Ctx) error {
 	userCollection := database.Client.Database("Auth").Collection("User")
 
