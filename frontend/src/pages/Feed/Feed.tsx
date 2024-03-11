@@ -8,6 +8,7 @@ import Paginator from "../../components/Paginator/Paginator";
 import Loader from "../../components/Loader/Loader";
 import ErrorHandler from "../../components/ErrorHandler/ErrorHandler";
 import "./Feed.css";
+import useWebSocket, { ReadyState } from "react-use-websocket";
 
 interface post {
 	_id: string;
@@ -105,6 +106,57 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 		loadPosts();
 	}, [loadPosts]);
 
+	const { readyState, lastJsonMessage } = useWebSocket(
+		import.meta.env.VITE_WS_URL,
+		{
+			share: true,
+		}
+	);
+
+	useEffect(() => {
+		console.log("socket Message", lastJsonMessage);
+		const data = lastJsonMessage as { action: string; post: post };
+		if (data) {
+			if (data.action === "create") {
+				addPost(data.post);
+			}
+		}
+	}, [lastJsonMessage]);
+
+	switch (readyState) {
+		case ReadyState.CONNECTING:
+			console.log("websocket connecting");
+			break;
+		case ReadyState.OPEN:
+			console.log("connection open");
+			break;
+		case ReadyState.CLOSING:
+			console.log("connection closing");
+			break;
+		case ReadyState.CLOSED:
+			console.log("connection closed");
+			break;
+		default:
+			console.log("connection uninstantiated");
+	}
+
+	// sendMessage("Testing");
+
+	const addPost = (post: post) => {
+		setState((prevState) => {
+			const updatedPosts = [...prevState.posts];
+			if (prevState.postPage === 1 && prevState.posts.length >= 2) {
+				updatedPosts.pop();
+				updatedPosts.unshift(post);
+			}
+			return {
+				...prevState,
+				posts: updatedPosts,
+				totalPosts: prevState.totalPosts + 1,
+			};
+		});
+	};
+
 	const statusUpdateHandler = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		fetch("URL")
@@ -189,15 +241,16 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 					createdAt: resData.post.createdAt,
 				};
 				setState((prevState) => {
-					let updatedPosts = [...prevState.posts];
+					const updatedPosts = [...prevState.posts];
 					if (prevState.editPost) {
 						const postIndex = prevState.posts.findIndex(
 							(p) => p._id === prevState.editPost?._id
 						);
 						updatedPosts[postIndex] = post;
-					} else if (prevState.posts.length < 2) {
-						updatedPosts = prevState.posts.concat(post as post);
 					}
+					// else if (prevState.posts.length < 2) {
+					// 	updatedPosts = prevState.posts.concat(post as post);
+					// }
 					return {
 						...prevState,
 						posts: updatedPosts,
@@ -247,6 +300,7 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 						...prevState,
 						posts: updatedPosts,
 						postsLoading: false,
+						totalPosts: prevState.totalPosts - 1,
 					};
 				});
 			})

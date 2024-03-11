@@ -4,6 +4,7 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
@@ -55,6 +56,7 @@ func main() {
 
 	auth.Router(app)
 	feed.Router(app)
+	app.Get("/ws", websocket.New(feed.BroadcastHandler))
 
 	app.Listen(":8000")
 }
