@@ -12,7 +12,7 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 
 interface post {
 	_id: string;
-	creator: string;
+	creator: { _id: string; name: string };
 	createdAt: string;
 	title: string;
 	imageUrl?: string;
@@ -107,10 +107,7 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 	}, [loadPosts]);
 
 	const { readyState, lastJsonMessage } = useWebSocket(
-		import.meta.env.VITE_WS_URL,
-		{
-			share: true,
-		}
+		import.meta.env.VITE_WS_URL
 	);
 
 	useEffect(() => {
@@ -119,6 +116,8 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 		if (data) {
 			if (data.action === "create") {
 				addPost(data.post);
+			} else if (data.action === "update") {
+				updatePost(data.post);
 			}
 		}
 	}, [lastJsonMessage]);
@@ -140,19 +139,35 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 			console.log("connection uninstantiated");
 	}
 
-	// sendMessage("Testing");
-
 	const addPost = (post: post) => {
 		setState((prevState) => {
 			const updatedPosts = [...prevState.posts];
-			if (prevState.postPage === 1 && prevState.posts.length >= 2) {
-				updatedPosts.pop();
+			if (prevState.postPage === 1) {
+				if (prevState.posts.length >= 2) {
+					updatedPosts.pop();
+				}
 				updatedPosts.unshift(post);
 			}
 			return {
 				...prevState,
 				posts: updatedPosts,
 				totalPosts: prevState.totalPosts + 1,
+			};
+		});
+	};
+
+	const updatePost = (post: post) => {
+		setState((prevState) => {
+			const updatedPosts = [...prevState.posts];
+			const updatedPostIndex = updatedPosts.findIndex(
+				(p) => p._id === post._id
+			);
+			if (updatedPostIndex > -1) {
+				updatedPosts[updatedPostIndex] = post;
+			}
+			return {
+				...prevState,
+				posts: updatedPosts,
 			};
 		});
 	};
@@ -233,27 +248,27 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 			})
 			.then((resData) => {
 				console.log(resData);
-				const post = {
-					_id: resData.post._id,
-					title: resData.post.title,
-					content: resData.post.content,
-					creator: resData.post.creator,
-					createdAt: resData.post.createdAt,
-				};
+				// const post = {
+				// 	_id: resData.post._id,
+				// 	title: resData.post.title,
+				// 	content: resData.post.content,
+				// 	creator: resData.post.creator,
+				// 	createdAt: resData.post.createdAt,
+				// };
 				setState((prevState) => {
-					const updatedPosts = [...prevState.posts];
-					if (prevState.editPost) {
-						const postIndex = prevState.posts.findIndex(
-							(p) => p._id === prevState.editPost?._id
-						);
-						updatedPosts[postIndex] = post;
-					}
+					// const updatedPosts = [...prevState.posts];
+					// if (prevState.editPost) {
+					// 	const postIndex = prevState.posts.findIndex(
+					// 		(p) => p._id === prevState.editPost?._id
+					// 	);
+					// 	updatedPosts[postIndex] = post;
+					// }
 					// else if (prevState.posts.length < 2) {
 					// 	updatedPosts = prevState.posts.concat(post as post);
 					// }
 					return {
 						...prevState,
-						posts: updatedPosts,
+						// posts: updatedPosts,
 						isEditing: false,
 						editPost: null,
 						editLoading: false,

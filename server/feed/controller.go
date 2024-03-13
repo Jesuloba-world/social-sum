@@ -23,11 +23,6 @@ type postSerializer struct {
 	Creator *creator `json:"creator"`
 }
 
-type creator struct {
-	ID   primitive.ObjectID `json:"_id"`
-	Name string             `json:"name"`
-}
-
 type allPostSerializer struct {
 	Message    string `json:"message"`
 	Posts      []Post `json:"posts"`
@@ -47,17 +42,18 @@ type allPostSerializer struct {
 // @Failure		500		{string}	string				"Internal Server Error"
 // @Router			/feed/posts [get]
 func getPosts(c *fiber.Ctx) error {
+	postCollection := database.Client.Database("Feed").Collection("Post")
+	userCollection := database.Client.Database("Auth").Collection("User")
+
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "2"))
 
-	PostCollection := database.Client.Database("Feed").Collection("Post")
-
 	skip := (page - 1) * limit
 
-	opts := options.Find().SetLimit(int64(limit)).SetSkip(int64(skip))
+	opts := options.Find().SetLimit(int64(limit)).SetSkip(int64(skip)).SetSort(bson.D{{Key: "createdAt", Value: -1}})
 
 	// Find all documents in the collection
-	cursor, err := PostCollection.Find(context.TODO(), bson.M{}, opts)
+	cursor, err := postCollection.Find(context.TODO(), bson.M{}, opts)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -72,6 +68,12 @@ func getPosts(c *fiber.Ctx) error {
 		if err := cursor.Decode(&post); err != nil {
 			return c.Status(http.StatusInternalServerError).SendString(err.Error())
 		}
+		user := new(auth.User)
+		err = userCollection.FindOne(context.TODO(), bson.M{"_id": post.CreatorId}).Decode(user)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+		}
+		post.Creator = creator{Name: user.Name}
 		posts = append(posts, post)
 	}
 
@@ -81,7 +83,7 @@ func getPosts(c *fiber.Ctx) error {
 	}
 
 	// Get the total number of documents in the collection
-	total, err := PostCollection.CountDocuments(context.TODO(), bson.M{})
+	total, err := postCollection.CountDocuments(context.TODO(), bson.M{})
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -103,7 +105,8 @@ func getPosts(c *fiber.Ctx) error {
 // @Failure		500	{string}	string			"Internal Server Error"
 // @Router			/feed/post [post]
 func createPost(c *fiber.Ctx) error {
-	PostCollection := database.Client.Database("Feed").Collection("Post")
+	postCollection := database.Client.Database("Feed").Collection("Post")
+	userCollection := database.Client.Database("Auth").Collection("User")
 
 	post := new(Post)
 	if err := c.BodyParser(post); err != nil {
@@ -132,25 +135,24 @@ func createPost(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
-	post.Creator = userId
+	post.CreatorId = userId
 
 	// get user object
-	UserCollection := database.Client.Database("Auth").Collection("User")
 	user := new(auth.User)
-	err = UserCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
+	err = userCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
 	// create post in db
-	result, err := PostCollection.InsertOne(context.TODO(), post)
+	result, err := postCollection.InsertOne(context.TODO(), post)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
 	// Retrieve the inserted document from the database
 	insertedPost := new(Post)
-	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": result.InsertedID}).Decode(insertedPost)
+	err = postCollection.FindOne(context.TODO(), bson.M{"_id": result.InsertedID}).Decode(insertedPost)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -168,14 +170,16 @@ func createPost(c *fiber.Ctx) error {
 		},
 	}
 
-	_, err = UserCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
+	_, err = userCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
+	insertedPost.Creator = creator{Name: user.Name}
+
 	broadcastPost(broadcastPostType{Action: "create", Post: insertedPost})
 
-	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost, Creator: &creator{ID: user.ID, Name: user.Name}})
+	return c.Status(http.StatusCreated).JSON(postSerializer{Message: "Post created successfully", Post: insertedPost, Creator: &creator{Name: user.Name}})
 }
 
 // @Summary		Get a specific post
@@ -190,21 +194,31 @@ func createPost(c *fiber.Ctx) error {
 // @Failure		500	{string}	string			"Internal Server Error"
 // @Router			/feed/post/{postId} [get]
 func getPost(c *fiber.Ctx) error {
-	postId := c.Params("postId")
-	PostCollection := database.Client.Database("Feed").Collection("Post")
+	postCollection := database.Client.Database("Feed").Collection("Post")
+	userCollection := database.Client.Database("Auth").Collection("User")
 
-	post := new(Post)
+	postId := c.Params("postId")
 
 	objectId, err := primitive.ObjectIDFromHex(postId)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).SendString("Invalid Id")
 	}
 
-	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(post)
+	post := new(Post)
+
+	err = postCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(post)
 	if err != nil {
 		// return c.Status(http.StatusBadRequest).SendString(err.Error())
 		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
 	}
+
+	user := new(auth.User)
+	err = userCollection.FindOne(context.TODO(), bson.M{"_id": post.CreatorId}).Decode(user)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	post.Creator = creator{Name: user.Name}
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post fetched successfully", Post: post})
 }
@@ -225,8 +239,10 @@ func getPost(c *fiber.Ctx) error {
 // @Failure		500	{string}	string			"Internal Server Error"
 // @Router			/feed/post/{postId} [put]
 func updatePost(c *fiber.Ctx) error {
+	postCollection := database.Client.Database("Feed").Collection("Post")
+	userCollection := database.Client.Database("Auth").Collection("User")
+
 	postId := c.Params("postId")
-	PostCollection := database.Client.Database("Feed").Collection("Post")
 
 	objectId, err := primitive.ObjectIDFromHex(postId)
 	if err != nil {
@@ -234,7 +250,7 @@ func updatePost(c *fiber.Ctx) error {
 	}
 
 	oldPost := new(Post)
-	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(oldPost)
+	err = postCollection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(oldPost)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).SendString("could not find post or Invalid Id")
 	}
@@ -245,7 +261,7 @@ func updatePost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	if oldPost.Creator != userId {
+	if oldPost.CreatorId != userId {
 		return c.Status(http.StatusUnauthorized).SendString("Not authorized!")
 	}
 
@@ -286,12 +302,22 @@ func updatePost(c *fiber.Ctx) error {
 	}
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
-	err = PostCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": objectId}, update, opts).Decode(post)
+	err = postCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": objectId}, update, opts).Decode(post)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
+	user := new(auth.User)
+	err = userCollection.FindOne(context.TODO(), bson.M{"_id": post.CreatorId}).Decode(user)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).SendString(err.Error())
+	}
+
+	post.Creator = creator{Name: user.Name}
+
 	slog.Info(fmt.Sprintf("post with id %s updated successfully", postId))
+
+	broadcastPost(broadcastPostType{Action: "update", Post: post})
 
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post updated successfully", Post: post})
 }
@@ -310,8 +336,9 @@ func updatePost(c *fiber.Ctx) error {
 // @Router			/feed/post/{postId} [delete]
 func deletePost(c *fiber.Ctx) error {
 	postId := c.Params("postId")
-	PostCollection := database.Client.Database("Feed").Collection("Post")
-	UserCollection := database.Client.Database("Auth").Collection("User")
+
+	postCollection := database.Client.Database("Feed").Collection("Post")
+	userCollection := database.Client.Database("Auth").Collection("User")
 
 	// get userId
 	userId, err := getUserIdFromLocals(c)
@@ -321,7 +348,7 @@ func deletePost(c *fiber.Ctx) error {
 
 	// get user object
 	user := new(auth.User)
-	err = UserCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
+	err = userCollection.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(user)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -333,7 +360,7 @@ func deletePost(c *fiber.Ctx) error {
 
 	deletedPost := new(Post)
 	opts := options.FindOne().SetProjection(bson.M{"_id": 1, "imageUrl": 1, "creator": 1})
-	err = PostCollection.FindOne(context.TODO(), bson.M{"_id": objectId}, opts).Decode(deletedPost)
+	err = postCollection.FindOne(context.TODO(), bson.M{"_id": objectId}, opts).Decode(deletedPost)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return c.Status(http.StatusNotFound).SendString("Post not found")
@@ -341,11 +368,11 @@ func deletePost(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
 
-	if deletedPost.Creator != user.ID {
+	if deletedPost.CreatorId != user.ID {
 		return c.Status(http.StatusUnauthorized).SendString("You are not authorized to delete this post")
 	}
 
-	result, err := PostCollection.DeleteOne(context.TODO(), bson.M{"_id": deletedPost.ID})
+	result, err := postCollection.DeleteOne(context.TODO(), bson.M{"_id": deletedPost.ID})
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
@@ -379,7 +406,7 @@ func deletePost(c *fiber.Ctx) error {
 			},
 		}
 
-		_, err = UserCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
+		_, err = userCollection.UpdateOne(context.TODO(), bson.M{"_id": user.ID}, update)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).SendString(err.Error())
 		}

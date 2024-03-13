@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
 )
 
 type (
@@ -12,9 +13,14 @@ type (
 		Title     string             `bson:"title" json:"title"`
 		Content   string             `bson:"content" json:"content"`
 		ImageURL  string             `bson:"imageUrl" json:"imageUrl"`
-		Creator   primitive.ObjectID `bson:"creator" json:"creator"`
+		CreatorId primitive.ObjectID `bson:"creator" json:"creatorId"`
+		Creator   creator            `bson:"_" json:"creator"`
 		CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
 		UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
+	}
+
+	creator struct {
+		Name string             `json:"name"`
 	}
 )
 
