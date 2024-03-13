@@ -118,9 +118,11 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 				addPost(data.post);
 			} else if (data.action === "update") {
 				updatePost(data.post);
+			} else if (data.action === "delete") {
+				loadPosts();
 			}
 		}
-	}, [lastJsonMessage]);
+	}, [lastJsonMessage, loadPosts]);
 
 	switch (readyState) {
 		case ReadyState.CONNECTING:
@@ -307,17 +309,18 @@ const Feed = (props: { token: string | null; userId: string | null }) => {
 			})
 			.then((resData) => {
 				console.log(resData);
-				setState((prevState) => {
-					const updatedPosts = prevState.posts.filter(
-						(p) => p._id !== postId
-					);
-					return {
-						...prevState,
-						posts: updatedPosts,
-						postsLoading: false,
-						totalPosts: prevState.totalPosts - 1,
-					};
-				});
+				loadPosts();
+				// setState((prevState) => {
+				// 	const updatedPosts = prevState.posts.filter(
+				// 		(p) => p._id !== postId
+				// 	);
+				// 	return {
+				// 		...prevState,
+				// 		posts: updatedPosts,
+				// 		postsLoading: false,
+				// 		totalPosts: prevState.totalPosts - 1,
+				// 	};
+				// });
 			})
 			.catch((err) => {
 				console.log(err);

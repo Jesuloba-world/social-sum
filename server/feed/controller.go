@@ -414,5 +414,7 @@ func deletePost(c *fiber.Ctx) error {
 
 	slog.Info(fmt.Sprintf("post with id %s deleted successfully", postId))
 
+	broadcastPost(broadcastPostType{Action: "delete", Post: deletedPost})
+
 	return c.Status(http.StatusOK).JSON(postSerializer{Message: "Post deleted successfully", Post: deletedPost})
 }
