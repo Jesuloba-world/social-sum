@@ -1,0 +1,28 @@
+type Post {
+	_id: ID!
+	title: String!
+	content: String!
+	imageUrl: String!
+	creator: User!
+	createdAt: String!
+	updatedAt: String!
+}
+
+type User {
+	_id: ID!
+	email: String!
+	name: String!
+	status: String!
+	posts: [Post!]!
+}
+
+input UserInputData {
+	email: String!
+	password: String!
+	name: String!
+}
+
+type Mutation {
+	createUser(userInput: UserInputData!): User!
+	hi(name: String!): String!
+}

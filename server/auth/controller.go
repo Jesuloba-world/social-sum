@@ -46,7 +46,7 @@ func signup(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())
 	}
 
-	hashedPassword, err := hashPassword(input.Password)
+	hashedPassword, err := HashPassword(input.Password)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).SendString(err.Error())
 	}
