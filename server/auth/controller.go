@@ -40,7 +40,7 @@ type loginSerializer struct {
 func signup(c *fiber.Ctx) error {
 	userCollection := database.Client.Database("Auth").Collection("User")
 
-	input := new(signupInput)
+	input := new(SignupInput)
 
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(http.StatusBadRequest).SendString(err.Error())

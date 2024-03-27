@@ -16,18 +16,14 @@ import (
 
 // CreateUser is the resolver for the createUser field.
 func (r *mutationResolver) CreateUser(ctx context.Context, userInput model.UserInputData) (*model.User, error) {
-	userCollection := r.DB.Database("Auth").Collection("User")
-
-	// check if user already exists
-	filter := bson.M{"email": userInput.Email}
-	var result auth.User
-	err := userCollection.FindOne(context.TODO(), filter).Decode(&result)
-
-	if err == nil && result.Email != "" {
-		return nil, fmt.Errorf("this user already exists")
+	// validate input
+	err := auth.ValidateSignupInput(auth.SignupInput{Email: userInput.Email, Name: userInput.Name, Password: userInput.Password})
+	if err != nil {
+		return nil, err
 	}
 
-	// if user doesn't exist, create a new user
+	userCollection := r.DB.Database("Auth").Collection("User")
+
 	hashedPassword, err := auth.HashPassword(userInput.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %s", err.Error())
@@ -49,7 +45,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, userInput model.UserI
 	}
 
 	// fetch created user
-	filter = bson.M{"_id": insertResult.InsertedID}
+	filter := bson.M{"_id": insertResult.InsertedID}
 	var createdUser auth.User
 	err = userCollection.FindOne(context.TODO(), filter).Decode(&createdUser)
 	if err != nil {

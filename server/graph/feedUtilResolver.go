@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"github.com/Jesuloba-world/social-sum/server/auth"
 	"github.com/Jesuloba-world/social-sum/server/feed"
 	"github.com/Jesuloba-world/social-sum/server/graph/model"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type UserResolver struct{ *Resolver }
+type PostResolver struct{ *Resolver }
 
-func (r *UserResolver) Posts(ctx context.Context, user *model.User) ([]*model.Post, error) {
+func (r *PostResolver) Posts(ctx context.Context, user *model.User) ([]*model.Post, error) {
 	var posts []*model.Post
 
 	postCollection := r.DB.Database("Feed").Collection("Post")

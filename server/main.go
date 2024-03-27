@@ -59,7 +59,7 @@ func main() {
 	}}))
 
 	// Serve GraphQL API
-	app.Use("/graphql", func(c *fiber.Ctx) error {
+	app.Post("/graphql", func(c *fiber.Ctx) error {
 		wrapHandler(srv.ServeHTTP)(c)
 		return nil
 	})

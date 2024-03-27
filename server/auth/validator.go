@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -14,7 +15,7 @@ import (
 var Validator = validator.New()
 
 func validateSignup(c *fiber.Ctx) error {
-	input := new(signupInput)
+	input := new(SignupInput)
 
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(Error{
@@ -23,13 +24,22 @@ func validateSignup(c *fiber.Ctx) error {
 		})
 	}
 
+	err := ValidateSignupInput(*input)
+	if err != nil {
+		c.Status(http.StatusUnprocessableEntity).JSON(Error{
+			Message: "Validation failed",
+			Error:   err.Error(),
+		})
+	}
+
+	return c.Next()
+}
+
+func ValidateSignupInput(input SignupInput) error {
 	validationErr := Validator.Struct(input)
 
 	if validationErr != nil {
-		return c.Status(http.StatusUnprocessableEntity).JSON(Error{
-			Message: "Validation failed",
-			Error:   validationErr.Error(),
-		})
+		return fmt.Errorf("%s", validationErr.Error())
 	}
 
 	// check
@@ -39,10 +49,10 @@ func validateSignup(c *fiber.Ctx) error {
 	err := userCollection.FindOne(context.TODO(), filter).Decode(result)
 
 	if err == nil && result.Email != "" {
-		return c.Status(http.StatusBadRequest).SendString("The User already exists")
+		return fmt.Errorf("validation failed: %s", "This User already exists")
 	}
 
-	return c.Next()
+	return nil
 }
 
 func validateLogin(c *fiber.Ctx) error {
